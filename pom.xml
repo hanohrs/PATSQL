@@ -15,7 +15,7 @@
 		<profile>
 			<id>testall</id>
 			<properties>
-				<excludedTag></excludedTag>
+				<excludedTag/>
 			</properties>
 		</profile>
 	</profiles>
@@ -52,6 +52,7 @@
 	</dependencies>
 
 	<build>
+		<sourceDirectory>src</sourceDirectory>
 		<testSourceDirectory>test</testSourceDirectory>
 		<plugins>
 			<plugin>
