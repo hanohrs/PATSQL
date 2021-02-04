@@ -1,6 +1,7 @@
 package patsql.entity.table;
 
 import java.text.DecimalFormat;
+import java.util.Comparator;
 
 public class Cell implements Comparable<Cell> {
 	public final Type type;
@@ -10,6 +11,7 @@ public class Cell implements Comparable<Cell> {
 		// validation and formatting
 		switch (type) {
 		case Int:
+			//noinspection ResultOfMethodCallIgnored
 			Integer.parseInt(value);
 			break;
 		case Dbl:
@@ -40,16 +42,35 @@ public class Cell implements Comparable<Cell> {
 
 	@Override
 	public int compareTo(Cell other) {
-		// Null is the largest.
-		if (this.type == Type.Null && other.type == Type.Null) {
-			return 0;
-		} else if (this.type == Type.Null) {
-			return -1;
-		} else if (other.type == Type.Null) {
-			return 1;
+		assert this.type == other.type || this.type == Type.Null || other.type == Type.Null;
+
+		Comparator<String> comparator;
+		switch (type) {
+		case Int:
+			comparator = Comparator.comparingInt(Integer::parseInt);
+			break;
+		case Dbl:
+			comparator = Comparator.comparingDouble(Double::parseDouble);
+			break;
+		case Str:
+			comparator = String::compareTo;
+			break;
+		case Date:
+			comparator = Comparator.comparing(DateValue::parse);
+			break;
+		case Null:
+			comparator = (s1, s2) -> {
+				throw new IllegalStateException("Null cannot have a value.");
+			};
+			break;
+		default:
+			throw new IllegalStateException("unknown type.");
 		}
 
-		return type.compare(this.value, other.value);
+		return Comparator.comparing(
+				(Cell cell) -> cell.type == Type.Null ? null : cell.value,
+				Comparator.nullsFirst(comparator)
+		).compare(this, other);
 	}
 
 	@Override
@@ -63,21 +84,11 @@ public class Cell implements Comparable<Cell> {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
+		if (!(obj instanceof Cell)) return false;
 		Cell other = (Cell) obj;
 		if (type != other.type)
 			return false;
-		if (value == null) {
-			if (other.value != null)
-				return false;
-		} else if (!value.equals(other.value))
-			return false;
-		return true;
+		return compareTo(other) == 0;
 	}
 
 }

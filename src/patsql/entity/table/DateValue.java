@@ -4,10 +4,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
-public class DateValue {
+public class DateValue implements Comparable<DateValue> {
 	public LocalDate date;
 
-	private static String[] dateFormats = { //
+	private static final String[] dateFormats = { //
 			"yyyy-MM-dd", //
 			"yyyy-MM-dd HH:mm:ss", //
 			"yyyy-MM-dd HH:mm:ss+00:00", //
@@ -66,8 +66,15 @@ public class DateValue {
 		return String.format("%04d-%02d-%02d", date.getYear(), date.getMonthValue(), date.getDayOfMonth());
 	}
 
+	@Override
 	public int compareTo(DateValue other) {
 		return this.date.compareTo(other.date);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (!(o instanceof DateValue)) return false;
+		return compareTo((DateValue) o) == 0;
 	}
 
 }
