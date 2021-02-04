@@ -1,15 +1,5 @@
 package patsql.entity.table;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import patsql.entity.table.agg.Aggregators;
 import patsql.entity.table.agg.GroupKeys;
 import patsql.entity.table.sort.Order;
@@ -18,7 +8,12 @@ import patsql.entity.table.sort.SortKeys;
 import patsql.ra.predicate.JoinCond;
 import patsql.ra.predicate.JoinKeyPair;
 
-import java.util.TreeMap;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
+
+import static java.util.stream.Collectors.*;
 
 public class Table {
 	public final Column[] columns;
@@ -95,15 +90,6 @@ public class Table {
 		throw new IllegalStateException("column id doesn't exist" + id);
 	}
 
-	public ColSchema[] schemaWithIds(int[] ids) {
-		ColSchema[] ret = new ColSchema[ids.length];
-		for (int i = 0; i < ids.length; i++) {
-			int id = ids[i];
-			ret[i] = columnById(id).schema;
-		}
-		return ret;
-	}
-
 	private Cell[] cellsWithSchema(int row, ColSchema[] schema) {
 		Cell[] ret = new Cell[schema.length];
 		for (int i = 0; i < schema.length; i++) {
@@ -121,7 +107,7 @@ public class Table {
 		// validation
 		for (Column col : cols) {
 			if (col.size() != height())
-				throw new IllegalArgumentException("The column has illagel size: " + col.size() + ", not " + height());
+				throw new IllegalArgumentException("The column has illegal size: " + col.size() + ", not " + height());
 		}
 
 		// create schema
@@ -193,29 +179,29 @@ public class Table {
 		return ret;
 	}
 
-	private void grouping(GroupKeys keys, Map<KeyCells, Table> map) {
-		for (int i = 0; i < height(); i++) {
-			Cell[] cells = cellsWithSchema(i, keys.colSchemas);
-			KeyCells keyCells = new KeyCells(cells);
-			Table group = map.get(keyCells);
-			if (group == null) {
-				group = new Table(schema());
-				map.put(keyCells, group);
-			}
-			group.addRow(row(i));
-		}
+	private Map<KeyCells, Table> grouping(GroupKeys keys, Supplier<Map<KeyCells, Table>> mapFactory) {
+		return IntStream.range(0, height()).boxed()
+				.collect(groupingBy(
+						i -> new KeyCells(cellsWithSchema(i, keys.colSchemas)),
+						mapFactory,
+						collectingAndThen(
+								mapping(this::row, toList()),
+								this::rowListToTable
+						)));
+	}
+
+	private Table rowListToTable(List<Cell[]> rowList) {
+		Table t = new Table(schema());
+		rowList.forEach(t::addRow);
+		return t;
 	}
 
 	private Map<KeyCells, Table> groupingSortedByKey(GroupKeys keys) {
-		Map<KeyCells, Table> map = new TreeMap<>();
-		grouping(keys, map);
-		return map;
+		return grouping(keys, TreeMap::new);
 	}
 
 	private Map<KeyCells, Table> groupingOrderPreserved(GroupKeys keys) {
-		Map<KeyCells, Table> map = new LinkedHashMap<>();
-		grouping(keys, map);
-		return map;
+		return grouping(keys, LinkedHashMap::new);
 	}
 
 	public Collection<Table> groups(GroupKeys keys) {
@@ -274,7 +260,7 @@ public class Table {
 	}
 
 	/**
-	 * @param scehma specifies a target column
+	 * @param schema specifies a target column
 	 * @return true only if the values of cells are decreasing and not all the same.
 	 */
 	public boolean isDecreasing(ColSchema schema) {
