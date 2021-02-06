@@ -1,23 +1,33 @@
 # PATSQL - SQL Synthesizer
+
 PATSQL is a programming-by-example tool that automatically synthesizes SQL queries from input and output tables.
 
 You can try PATSQL at https://naist-se.github.io/patsql/.
 
 ## Requirements
-The code is written in Java as an Eclipse project. Maven is also required to manage dependencies and build the project.
+
+The code is written in Java as an IntelliJ IDEA project. Maven is also required to manage dependencies and build the
+project.
+
 - Java 1.8 or later
-- Maven 3.6.1 or later
+- Maven 3.6.3 or later
 
 ## Contents
-- `src`  - source code.
+
+- `src` - source code.
 - `test` - test code.
 - `examples` - input and output tables used for test and evaluation.
 - `evaluation` - the details of the evaluation result in [the arXiv paper](#paper).
 
 ## How to execute the synthesis?
-There are test cases under the `test` directory. The test cases would be helpful to understand the usage of each method in the project.
 
-In particular, the test case `patsql.synth.RASynthesizerTest.ExampleForSQLSynthesis` shows a basic example of SQL synthesis as follows. 
+There are test cases under the `test` directory. The test cases would be helpful to understand the usage of each method
+in the project.
+
+In particular, the test case `patsql.synth.RASynthesizerTest.ExampleForSQLSynthesis` shows a basic example of SQL
+synthesis as follows.
+
+[comment]: <> (@formatter:off)
 
 ```java
 	@Test
@@ -25,34 +35,34 @@ In particular, the test case `patsql.synth.RASynthesizerTest.ExampleForSQLSynthe
 
 		// Create the input table by giving the schema and rows
 		Table inTable = new Table(
-				new ColSchema("col1", Type.Str), 
-				new ColSchema("col2", Type.Str), 
-				new ColSchema("col3", Type.Int), 
+				new ColSchema("col1", Type.Str),
+				new ColSchema("col2", Type.Str),
+				new ColSchema("col3", Type.Int),
 				new ColSchema("col4", Type.Date)
 		);
 		inTable.addRow(
-				new Cell("A1", Type.Str), 
-				new Cell("XXX", Type.Str), 
-				new Cell("123", Type.Int), 
+				new Cell("A1", Type.Str),
+				new Cell("XXX", Type.Str),
+				new Cell("123", Type.Int),
 				new Cell("20200709", Type.Date)
 		);
 		inTable.addRow(
-				new Cell("A2", Type.Str), 
-				new Cell("XXX", Type.Str), 
-				new Cell("345", Type.Int), 
+				new Cell("A2", Type.Str),
+				new Cell("XXX", Type.Str),
+				new Cell("345", Type.Int),
 				new Cell("null", Type.Null)
 		);
 		inTable.addRow(
-				new Cell("A3", Type.Str), 
-				new Cell("XXX", Type.Str), 
-				new Cell("567", Type.Int), 
+				new Cell("A3", Type.Str),
+				new Cell("XXX", Type.Str),
+				new Cell("567", Type.Int),
 				new Cell("20200713", Type.Date)
 		);
 
 		// Create the output table
 		Table outTable = new Table(
-				new ColSchema("col1", Type.Str), 
-				new ColSchema("col3", Type.Int) 
+				new ColSchema("col1", Type.Str),
+				new ColSchema("col3", Type.Int)
 		);
 		outTable.addRow(new Cell("A1", Type.Str), new Cell("123", Type.Int));
 		outTable.addRow(new Cell("A3", Type.Str), new Cell("567", Type.Int));
@@ -83,38 +93,38 @@ In particular, the test case `patsql.synth.RASynthesizerTest.ExampleForSQLSynthe
 	}
 ```
 
+[comment]: <> (@formatter:on)
+
 ## Paper
-"PATSQL: Efficient Synthesis of SQL Queries from Example Tables with Quick Inference of Projected Columns", submitted to [arXiv](https://arxiv.org/abs/2010.05807).
+
+"PATSQL: Efficient Synthesis of SQL Queries from Example Tables with Quick Inference of Projected Columns", submitted
+to [arXiv](https://arxiv.org/abs/2010.05807).
 
 ## Third-party libraries used in this project
-See the transitive dependencies from each link below.  
+
+See the transitive dependencies from each link below.
 
 ### JUnit Jupiter API
-Module "junit-jupiter-api" of JUnit 5.  
-License: EPL 2.0  
-Version: 5.5.1  
-https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api/5.5.1  
+
+Module "junit-jupiter-api" of JUnit 5. License: EPL 2.0 Version: 5.5.1
+https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api/5.5.1
 
 ### JUnit Jupiter Engine
-Module "junit-jupiter-engine" of JUnit 5.  
-License: EPL 2.0  
-Version: 5.5.1  
-https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-engine/5.5.1  
+
+Module "junit-jupiter-engine" of JUnit 5. License: EPL 2.0 Version: 5.5.1
+https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-engine/5.5.1
 
 ### H2 Database Engine
-Used to validate the syntax of synthesized queries in test.  
-License: EPL 1.0, MPL 2.0  
-Version: 1.4.200  
-https://mvnrepository.com/artifact/com.h2database/h2/1.4.200  
+
+Used to validate the syntax of synthesized queries in test. License: EPL 1.0, MPL 2.0 Version: 1.4.200
+https://mvnrepository.com/artifact/com.h2database/h2/1.4.200
 
 ### Gson
-Used to serialize and deserialize Java objects to JSON.  
-License: Apache 2.0  
-Version: 2.8.6  
+
+Used to serialize and deserialize Java objects to JSON. License: Apache 2.0 Version: 2.8.6
 https://mvnrepository.com/artifact/com.google.code.gson/gson/2.8.6
 
 ### Hibernate Core Relocation
-Used to format SQL queries.  
-License: LGPL 2.1  
-Version: 5.4.11.Final  
-https://mvnrepository.com/artifact/org.hibernate/hibernate-core/5.4.11.Final  
+
+Used to format SQL queries. License: LGPL 2.1 Version: 5.4.11.Final
+https://mvnrepository.com/artifact/org.hibernate/hibernate-core/5.4.11.Final
