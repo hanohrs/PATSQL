@@ -1,14 +1,22 @@
 package patsql.entity.table.sort;
 
-public class SortKeys {
-	public final SortKey[] keys;
-
-	public SortKeys(SortKey... keys) {
-		this.keys = keys;
-	}
+public record SortKeys(SortKey... keys) {
+	public static final SortKeys NIL = new SortKeys();
 
 	public static SortKeys nil() {
-		return new SortKeys();
+		return NIL;
+	}
+
+	public SortKey[] getAll() {
+		return keys;
+	}
+
+	public SortKey get(int i) {
+		return keys[i];
+	}
+
+	public int count() {
+		return keys.length;
 	}
 
 	@Override
@@ -23,5 +31,4 @@ public class SortKeys {
 		}
 		return String.join(" ", strs);
 	}
-
 }

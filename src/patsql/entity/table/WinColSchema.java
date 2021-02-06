@@ -43,7 +43,7 @@ public class WinColSchema extends ColSchema {
 	}
 
 	public boolean hasOrderKey() {
-		return orderKey.keys.length != 0;
+		return orderKey.count() != 0;
 	}
 
 	public boolean isValid() {

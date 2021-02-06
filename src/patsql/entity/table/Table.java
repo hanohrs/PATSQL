@@ -221,8 +221,8 @@ public class Table {
 
 	public Table sort(SortKeys sortKeys) {
 		Table ret = this;
-		for (int i = sortKeys.keys.length - 1; i >= 0; i--) {
-			ret = ret.sort(sortKeys.keys[i]);
+		for (int i = sortKeys.getAll().length - 1; i >= 0; i--) {
+			ret = ret.sort(sortKeys.get(i));
 		}
 		return ret;
 	}
@@ -407,7 +407,7 @@ public class Table {
 				// set cells to calculate the range.
 				Cell[] orderKeys = null;
 				if (wsc.hasOrderKey()) {
-					SortKey k = wsc.orderKey.keys[0];
+					SortKey k = wsc.orderKey.get(0);
 					orderKeys = grp.columnById(k.col.id).cells();
 				}
 
@@ -415,7 +415,7 @@ public class Table {
 					// if the function is aggregation, it applied on all rows.
 					int lim = -1;
 					if (wsc.func.isAgg())
-						lim = (wsc.orderKey.keys.length > 0) ? i : grp.height() - 1;
+						lim = (wsc.orderKey.count() > 0) ? i : grp.height() - 1;
 					else
 						lim = i;
 					Cell result = wsc.func.eval(lim, targetCells, orderKeys);

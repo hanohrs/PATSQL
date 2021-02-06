@@ -205,7 +205,7 @@ public class SQLUtil {
 				}
 
 				List<QSortSpec> sortSpecs = new ArrayList<>();
-				for (SortKey sortKey : wcs.orderKey.keys) {
+				for (SortKey sortKey : wcs.orderKey.getAll()) {
 					QColumn qCol = ret.idToQColumn.get(sortKey.col.id);
 					assert qCol != null;
 
@@ -264,7 +264,7 @@ public class SQLUtil {
 			SQLizeState tmp = generateSQLizeState(sort.child);
 
 			SQLizeState ret;
-			if (Arrays.stream(sort.sortKeys.keys) //
+			if (Arrays.stream(sort.sortKeys.getAll()) //
 					.map(sortKey -> tmp.idToQColumn.get(sortKey.col.id))
 					.anyMatch(qCol -> qCol instanceof QWindowFuncColumn)) {
 				ret = tmp.createSubQuery();
@@ -273,7 +273,7 @@ public class SQLUtil {
 				ret = tmp;
 			}
 
-			for (SortKey sortKey : sort.sortKeys.keys) {
+			for (SortKey sortKey : sort.sortKeys.getAll()) {
 				QColumn qCol = ret.idToQColumn.get(sortKey.col.id);
 				assert qCol != null;
 

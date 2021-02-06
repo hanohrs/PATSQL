@@ -146,7 +146,7 @@ public class RAOptimizer {
 				case SORT: {
 					Sort p = (Sort) op;
 					Set<Integer> ids = new HashSet<>();
-					for (SortKey key : p.sortKeys.keys) {
+					for (SortKey key : p.sortKeys.getAll()) {
 						ids.addAll(usedIDs(key.col));
 					}
 					ret.put(op, ids);
@@ -209,7 +209,7 @@ public class RAOptimizer {
 						for (ColSchema sc : c.partKey.colSchemas) {
 							ids.addAll(usedIDs(sc));
 						}
-						for (SortKey key : c.orderKey.keys) {
+						for (SortKey key : c.orderKey.getAll()) {
 							ids.addAll(usedIDs(key.col));
 						}
 					}
@@ -262,7 +262,7 @@ public class RAOptimizer {
 			if (wc.getSrc().isPresent())
 				ret.add(wc.getSrc().get());
 			ret.addAll(Arrays.asList(wc.partKey.colSchemas));
-			for (SortKey sk : wc.orderKey.keys)
+			for (SortKey sk : wc.orderKey.getAll())
 				ret.add(sk.col);
 			return ret;
 		} else {
