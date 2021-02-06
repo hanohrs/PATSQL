@@ -1,25 +1,9 @@
 package patsql.synth;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
+import org.jetbrains.annotations.Nullable;
 import patsql.entity.synth.Example;
-import patsql.entity.synth.NamedTable;
 import patsql.entity.synth.SynthOption;
 import patsql.entity.table.Cell;
-import patsql.entity.table.Column;
 import patsql.entity.table.Table;
 import patsql.entity.table.Type;
 import patsql.ra.operator.BaseTable;
@@ -27,10 +11,22 @@ import patsql.ra.operator.RA;
 import patsql.ra.operator.RAOperator;
 import patsql.ra.util.RAOptimizer;
 import patsql.ra.util.RAUtils;
-import patsql.ra.util.RAVisitor;
 import patsql.ra.util.Utils;
 import patsql.synth.filler.SketchFiller;
 import patsql.synth.sketcher.Sketcher;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class RASynthesizer implements Callable<RAOperator> {
 	final Example example;
@@ -41,15 +37,35 @@ public class RASynthesizer implements Callable<RAOperator> {
 		this.option = option;
 	}
 
+	@Nullable
+	private Boolean memo = null;
+
+	private static boolean hasRAOperator(RAOperator sketch, RA ra) {
+		boolean[] ret = new boolean[1]; // ret[0] == false
+		RAUtils.traverse(sketch, op -> {
+			if (op.kind == ra) {
+				ret[0] = true;
+				return false;
+			}
+			return true;
+		});
+		return ret[0];
+	}
+
 	@Override
-	public RAOperator call() throws Exception {
+	public RAOperator call() {
 		return synthesize();
+	}
+
+	private boolean check(RAOperator program) {
+		Table result = program.eval(example.tableEnv());
+		return result.hasSameRows(example.output);
 	}
 
 	/**
 	 * @return null if timeout happens.
 	 */
-	public RAOperator synthesize(int timeoutMs) {
+	public @Nullable RAOperator synthesize(int timeoutMs) {
 		ExecutorService service = Executors.newSingleThreadExecutor();
 		Future<RAOperator> future = service.submit(new RASynthesizer(example, option));
 		try {
@@ -63,7 +79,7 @@ public class RASynthesizer implements Callable<RAOperator> {
 		}
 	}
 
-	public RAOperator synthesize() {
+	public @Nullable RAOperator synthesize() {
 		long startDebug = System.nanoTime();
 
 		boolean isOutputSorted = Arrays.stream(example.output.columns) //
@@ -103,73 +119,43 @@ public class RASynthesizer implements Callable<RAOperator> {
 		return null;
 	}
 
-	private boolean check(RAOperator program) {
-		Table result = program.eval(example.tableEnv());
-		return result.hasSameRows(example.output);
-	}
-
 	private boolean isValidSketch(RAOperator sketch) {
 		// if external constants exist, selection is needed.
-		if (option.extCells.length > 0 && !hasRAOperator(sketch, RA.SELECTION)) {
+		if (option.extCells.length > 0 && !hasRAOperator(sketch, RA.SELECTION))
 			return false;
-		}
 
 		// if external constants do not exist, either NULL or left join is needed.
-		if (option.extCells.length == 0 && hasRAOperator(sketch, RA.SELECTION)) {
-			if (!inputContainsNull() && !hasRAOperator(sketch, RA.LEFTJOIN)) {
-				return false;
-			}
-		}
+		if (option.extCells.length == 0 && hasRAOperator(sketch, RA.SELECTION))
+			return inputContainsNull() || hasRAOperator(sketch, RA.LEFTJOIN);
+
 		return true;
 	}
 
-	private Optional<Boolean> memo = Optional.empty();
-
 	private boolean inputContainsNull() {
-		if (memo.isPresent()) {
-			return memo.get();
+		if (memo != null) {
+			return memo;
 		}
-		for (NamedTable in : example.inputs) {
-			for (Column col : in.table.columns) {
-				for (Cell c : col.cells()) {
-					if (c.type == Type.Null) {
-						memo = Optional.of(true);
-						return true;
-					}
-				}
-			}
+		if (Arrays.stream(example.inputs)
+				.flatMap(in -> Arrays.stream(in.table.columns))
+				.flatMap(col -> Arrays.stream(col.cells()))
+				.map(Cell::type)
+				.anyMatch(Type.Null::equals)) {
+			memo = true;
+			return true;
+		} else {
+			memo = false;
+			return false;
 		}
-		memo = Optional.of(false);
-		return false;
-	}
-
-	private boolean hasRAOperator(RAOperator sketch, RA ra) {
-		boolean[] ret = new boolean[1];
-		ret[0] = false;
-		RAUtils.traverse(sketch, new RAVisitor() {
-			@Override
-			public boolean on(RAOperator op) {
-				if (op.kind == ra) {
-					ret[0] = true;
-					return false;
-				}
-				return true;
-			}
-		});
-		return ret[0];
 	}
 
 	private List<RAOperator> assignNamesOnBaseTables(RAOperator sketch) {
 		// collect base tables.
 		List<BaseTable> baseTables = new ArrayList<>();
-		RAUtils.traverse(sketch, new RAVisitor() {
-			@Override
-			public boolean on(RAOperator op) {
-				if (op.kind == RA.BASETABLE) {
-					baseTables.add((BaseTable) op);
-				}
-				return true;
+		RAUtils.traverse(sketch, op -> {
+			if (op.kind == RA.BASETABLE) {
+				baseTables.add((BaseTable) op);
 			}
+			return true;
 		});
 		Collections.reverse(baseTables);
 
@@ -199,29 +185,17 @@ public class RASynthesizer implements Callable<RAOperator> {
 		List<Assignment> ret = new ArrayList<>();
 		for (List<String> a : Utils.cartesianProduct(namesList)) {
 			Assignment assign = new Assignment(a);
-			if (assign.isValidAssignment()) {
+			if (assign.isValidAssignment(example)) {
 				ret.add(assign);
 			}
 		}
 		return ret;
 	}
 
-	private class Assignment {
-		final List<String> names;
-
-		public Assignment(List<String> names) {
-			this.names = names;
-		}
-
-		private boolean isValidAssignment() {
+	private record Assignment(List<String> names) {
+		private boolean isValidAssignment(Example example) {
 			// all IDs must be used at least once.
-			Set<String> set = new HashSet<>(names);
-			if (set.size() != example.inputs.length) {
-				return false;
-			}
-
-			return true;
+			return new HashSet<>(names).size() == example.inputs.length;
 		}
 	}
-
 }

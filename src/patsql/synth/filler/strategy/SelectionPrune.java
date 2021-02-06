@@ -1,9 +1,5 @@
 package patsql.synth.filler.strategy;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 import patsql.entity.synth.Example;
 import patsql.entity.synth.SynthOption;
 import patsql.entity.table.AggColSchema;
@@ -27,6 +23,10 @@ import patsql.synth.filler.ColRelation;
 import patsql.synth.filler.FillingConstraint;
 import patsql.synth.filler.RowSearch;
 import patsql.synth.filler.RowSearch.Op;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class SelectionPrune implements FillingStrategy {
 
@@ -114,7 +114,7 @@ public class SelectionPrune implements FillingStrategy {
 	 * Order comparisons between String types are excluded.
 	 */
 	private boolean isTried(ColSchema left, BinaryOp binop, Cell right) {
-		if (left.type != right.type)
+		if (left.type != right.type())
 			return false;
 
 		// skip 'x' = ConcatConmma(...)

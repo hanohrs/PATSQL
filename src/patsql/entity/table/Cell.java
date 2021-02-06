@@ -3,36 +3,31 @@ package patsql.entity.table;
 import java.text.DecimalFormat;
 import java.util.Comparator;
 
-public class Cell implements Comparable<Cell> {
-	public final Type type;
-	public final String value;
+public record Cell(String value, Type type) implements Comparable<Cell> {
+	private static final String NULL_VALUE = "NULL";
+	public static final Cell NULL = new Cell(NULL_VALUE, Type.Null);
 
-	public Cell(String value, Type type) {
-		// validation and formatting
+	public Cell {
 		switch (type) {
-		case Int:
-			//noinspection ResultOfMethodCallIgnored
-			Integer.parseInt(value);
-			break;
-		case Dbl:
+		case Int -> {//noinspection ResultOfMethodCallIgnored
+			Integer.parseInt(value); // validation
+		}
+		case Dbl -> {
 			double d = Double.parseDouble(value);
 			DecimalFormat fm = new DecimalFormat("#.000");
 			value = fm.format(d);
-			break;
-		case Null:
-			value = "NULL";
-			break;
-		case Str:
+		}
+		case Null -> {
+			value = NULL_VALUE;
+		}
+		case Str -> {
 			// NOP
-			break;
-		case Date:
+		}
+		case Date -> {
 			DateValue dateCell = DateValue.parse(value);
 			value = dateCell.toString();
-			break;
 		}
-
-		this.type = type;
-		this.value = value;
+		}
 	}
 
 	@Override
@@ -43,52 +38,27 @@ public class Cell implements Comparable<Cell> {
 	@Override
 	public int compareTo(Cell other) {
 		assert this.type == other.type || this.type == Type.Null || other.type == Type.Null;
-
-		Comparator<String> comparator;
-		switch (type) {
-		case Int:
-			comparator = Comparator.comparingInt(Integer::parseInt);
-			break;
-		case Dbl:
-			comparator = Comparator.comparingDouble(Double::parseDouble);
-			break;
-		case Str:
-			comparator = String::compareTo;
-			break;
-		case Date:
-			comparator = Comparator.comparing(DateValue::parse);
-			break;
-		case Null:
-			comparator = (s1, s2) -> {
-				throw new IllegalStateException("Null cannot have a value.");
-			};
-			break;
-		default:
-			throw new IllegalStateException("unknown type.");
-		}
-
+		//noinspection ReturnOfNull
 		return Comparator.comparing(
 				(Cell cell) -> cell.type == Type.Null ? null : cell.value,
-				Comparator.nullsFirst(comparator)
+				Comparator.nullsFirst(this.type.comparator())
 		).compare(this, other);
 	}
 
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((type == null) ? 0 : type.hashCode());
-		result = prime * result + ((value == null) ? 0 : value.hashCode());
+		int result = type.hashCode();
+		if (type != Type.Null)
+			result = 31 * result + value.hashCode();
 		return result;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (!(obj instanceof Cell)) return false;
-		Cell other = (Cell) obj;
-		if (type != other.type)
+		if (this == obj)
+			return true;
+		if (!(obj instanceof Cell other) || type != other.type)
 			return false;
 		return compareTo(other) == 0;
 	}
-
 }

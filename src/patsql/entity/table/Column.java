@@ -8,7 +8,7 @@ import java.util.Set;
 
 public class Column {
 	public final ColSchema schema;
-	private List<Cell> cells = new ArrayList<>();
+	private final List<Cell> cells = new ArrayList<>();
 
 	public Column(ColSchema schema) {
 		super();
@@ -16,9 +16,9 @@ public class Column {
 	}
 
 	public void addCell(Cell c) {
-		if (!Type.canBeInserted(schema.type, c.type)) {
+		if (!Type.canBeInserted(schema.type, c.type())) {
 			throw new IllegalStateException(
-					"There is a mismatch between data and types: (" + schema.type + ", " + c.type + ")");
+					"There is a mismatch between data and types: (" + schema.type + ", " + c.type() + ")");
 		}
 		cells.add(c);
 	}
@@ -32,7 +32,7 @@ public class Column {
 	}
 
 	public Cell[] cells() {
-		return cells.toArray(new Cell[0]);
+		return cells.toArray(Cell[]::new);
 	}
 
 	public boolean hasSameVec(Column other) {

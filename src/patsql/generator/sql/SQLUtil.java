@@ -49,7 +49,6 @@ import patsql.ra.predicate.Predicate;
 import patsql.ra.predicate.UnaryOp;
 import patsql.ra.predicate.UnaryPred;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -60,6 +59,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SQLUtil {
+
+	public static final Pattern WINDOW_FUNC_PATTERN = Pattern.compile("(?<func>\\S+\\([^)]*\\)) OVER \\(" //
+			+ "(PARTITION\\s+BY\\s+(?<part>\\S+(,\\s*\\S+)*))?\\s*"
+			+ "(ORDER BY\\s+(?<sort>\\S+ (ASC|DESC)(,\\s*\\S+ (ASC|DESC))*))?\\)", Pattern.MULTILINE);
 
 	public static String generateSQL(RAOperator program) {
 		SQLizeState state = generateSQLizeState(program);
@@ -75,7 +78,7 @@ public class SQLUtil {
 		String wsRemoved = removeExtraWhitespaces(sql);
 		String str = new BasicFormatterImpl().format(wsRemoved);
 		String sep = System.lineSeparator();
-		str = str.replaceAll(sep + "    ", sep);// remove left padding.
+		str = str.replaceAll(sep + " {4}", sep);// remove left padding.
 		str = reformatWindowFunc(str);
 		str = reformatStringAgg(str);
 		str = reformatExtract(str);
@@ -83,15 +86,17 @@ public class SQLUtil {
 	}
 
 	public static String removeExtraWhitespaces(String str) {
-		return str.replaceAll("\\s+", " ").replaceAll("\\( ", "(").replaceAll(" \\)", ")").replaceAll(" ,(?! )", ", ")
+		//noinspection DynamicRegexReplaceableByCompiledPattern
+		return str.replaceAll("\\s+", " ")
+				.replaceAll("\\( ", "(")
+				.replaceAll(" \\)", ")")
+				.replaceAll(" ,(?! )", ", ")
 				.trim();
 	}
 
+	@SuppressWarnings("DynamicRegexReplaceableByCompiledPattern")
 	static String reformatWindowFunc(String str) {
-		Pattern pat = Pattern.compile("(?<func>\\S+\\([^)]*\\)) OVER \\(" //
-				+ "(PARTITION\\s+BY\\s+(?<part>\\S+(,\\s*\\S+)*))?\\s*"
-				+ "(ORDER BY\\s+(?<sort>\\S+ (ASC|DESC)(,\\s*\\S+ (ASC|DESC))*))?\\)", Pattern.MULTILINE);
-		Matcher matcher = pat.matcher(str);
+		Matcher matcher = WINDOW_FUNC_PATTERN.matcher(str);
 		StringBuffer sb = new StringBuffer();
 		while (matcher.find()) {
 			String func = matcher.group("func").replaceAll("\\s+", " ");
@@ -349,17 +354,14 @@ public class SQLUtil {
 				l.idToQColumn.putAll(r.idToQColumn);
 				QCondition qcond = predToQCond(cond, l.idToQColumn);
 				l.fillJoin(new QJoinSpec(JoinType.LEFT, r.query.fromTables.firstRelation, qcond));
-				return l;
-
 			} else {
 				// join with subquery
 				SQLizeState subR = r.createSubQuery();
 				l.idToQColumn.putAll(subR.idToQColumn);
 				QCondition qcond = predToQCond(cond, l.idToQColumn);
 				l.fillJoin(new QJoinSpec(JoinType.LEFT, subR.query.fromTables.firstRelation, qcond));
-				return l;
 			}
-
+			return l;
 		} else if (l.stage == Stage.FROM) {
 			// join with subquery
 			SQLizeState subR = r.createSubQuery();
@@ -367,7 +369,6 @@ public class SQLUtil {
 			QCondition qcond = predToQCond(cond, l.idToQColumn);
 			l.fillJoin(new QJoinSpec(JoinType.LEFT, subR.query.fromTables.firstRelation, qcond));
 			return l;
-
 		} else {
 			// join with subquery (both side)
 			SQLizeState subL = l.createSubQuery();
@@ -380,75 +381,36 @@ public class SQLUtil {
 	}
 
 	private static QCondition predToQCond(Predicate pred, Map<Integer, QColumn> idToQColumn) {
-		if (pred instanceof BinaryPred) {
-			BinaryPred bp = (BinaryPred) pred;
-
+		if (pred instanceof BinaryPred bp) {
 			BinaryOp bo = bp.op;
-			Operator op;
-			switch (bo) {
-			case Eq:
-				op = Operator.EQ;
-				break;
-			case NotEq:
-				op = Operator.NE;
-				break;
-			case Gt:
-				op = Operator.GT;
-				break;
-			case Geq:
-				op = Operator.GE;
-				break;
-			case Lt:
-				op = Operator.LT;
-				break;
-			case Leq:
-				op = Operator.LE;
-				break;
-			default:
-				throw new RuntimeException("unexpected: " + bo);
-			}
-
+			Operator op = switch (bo) {
+				case Eq -> Operator.EQ;
+				case NotEq -> Operator.NE;
+				case Gt -> Operator.GT;
+				case Geq -> Operator.GE;
+				case Lt -> Operator.LT;
+				case Leq -> Operator.LE;
+			};
 			QCondition leftCond = new QSingleColumnCondition(idToQColumn.get(bp.left.id));
-
 			Cell right = bp.right;
-			QSingleColumnCondition rightCond;
-			switch (right.type) {
-			case Int:
-				rightCond = new QSingleColumnCondition(new QColumnConstant<Integer>(Integer.valueOf(right.value)));
-				break;
-			case Dbl:
-				rightCond = new QSingleColumnCondition(new QColumnConstant<Double>(Double.valueOf(right.value)));
-				break;
-			case Date:
-				rightCond = new QSingleColumnCondition(
-						new QColumnConstant<LocalDate>(DateValue.parse(right.value).date));
-				break;
-			case Str:
-				rightCond = new QSingleColumnCondition(new QColumnConstant<String>(right.value));
-				break;
-			case Null:
-				throw new RuntimeException("The only operator for NULL is IS");
-			default:
-				throw new RuntimeException("unexpected right type: " + right.type);
-			}
-
+			QSingleColumnCondition rightCond = switch (right.type()) {
+				case Int -> new QSingleColumnCondition(new QColumnConstant<>(Integer.valueOf(right.value())));
+				case Dbl -> new QSingleColumnCondition(new QColumnConstant<>(Double.valueOf(right.value())));
+				case Date -> new QSingleColumnCondition(
+						new QColumnConstant<>(DateValue.parse(right.value()).date));
+				case Str -> new QSingleColumnCondition(new QColumnConstant<>(right.value()));
+				case Null -> throw new RuntimeException("The only operator for NULL is IS");
+			};
 			return new QRelationBinaryOperator(op, leftCond, rightCond);
-
-		} else if (pred instanceof Conjunction) {
-			Conjunction conjunction = (Conjunction) pred;
+		} else if (pred instanceof Conjunction conjunction) {
 			QCondition ret = null;
 			for (Predicate subpred : conjunction.predicates) {
 				QCondition qcond = predToQCond(subpred, idToQColumn);
-				if (ret == null) {
-					ret = qcond;
-				} else {
-					ret = new QConditionBinaryOperator(QConditionBinaryOperator.Operator.AND, ret, qcond);
-				}
+				ret = ret == null ?
+						qcond : new QConditionBinaryOperator(QConditionBinaryOperator.Operator.AND, ret, qcond);
 			}
 			return ret;
-
-		} else if (pred instanceof Disjunction) {
-			Disjunction disjunction = (Disjunction) pred;
+		} else if (pred instanceof Disjunction disjunction) {
 			QCondition ret = null;
 			for (Predicate subpred : disjunction.predicates) {
 				QCondition qcond = predToQCond(subpred, idToQColumn);
@@ -459,9 +421,7 @@ public class SQLUtil {
 				}
 			}
 			return ret;
-
-		} else if (pred instanceof JoinCond) {
-			JoinCond joinCond = (JoinCond) pred;
+		} else if (pred instanceof JoinCond joinCond) {
 			QCondition ret = null;
 			for (JoinKeyPair jkp : joinCond.pairs) {
 				QCondition qcond = predToQCond(jkp, idToQColumn);
@@ -472,18 +432,12 @@ public class SQLUtil {
 				}
 			}
 			return ret;
-
-		} else if (pred instanceof JoinKeyPair) {
-			JoinKeyPair jkp = (JoinKeyPair) pred;
+		} else if (pred instanceof JoinKeyPair jkp) {
 			QCondition condL = new QSingleColumnCondition(idToQColumn.get(jkp.left.id));
 			QCondition condR = new QSingleColumnCondition(idToQColumn.get(jkp.right.id));
 			return new QRelationBinaryOperator(Operator.EQ, condL, condR);
-
-		} else if (pred instanceof UnaryPred) {
-			UnaryPred up = (UnaryPred) pred;
-
+		} else if (pred instanceof UnaryPred up) {
 			QCondition condL = new QSingleColumnCondition(idToQColumn.get(up.operand.id));
-
 			patsql.generator.sql.query.QRelationUnaryOperator.Operator operator;
 			if (up.op == UnaryOp.IsNull) {
 				operator = patsql.generator.sql.query.QRelationUnaryOperator.Operator.IS_NULL;
@@ -492,9 +446,7 @@ public class SQLUtil {
 			} else {
 				throw new RuntimeException("unexpected unary operator: " + up.op);
 			}
-
 			return new QRelationUnaryOperator(operator, condL);
-
 		} else {
 			throw new RuntimeException("unexpected predicate: " + pred.getClass());
 		}

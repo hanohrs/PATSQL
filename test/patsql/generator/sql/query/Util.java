@@ -1,16 +1,6 @@
 package patsql.generator.sql.query;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.junit.jupiter.api.Assertions;
-
 import patsql.entity.synth.NamedTable;
 import patsql.entity.table.Cell;
 import patsql.entity.table.ColSchema;
@@ -21,8 +11,21 @@ import patsql.entity.table.Type;
 import patsql.generator.sql.SQLUtil;
 import patsql.ra.operator.BaseTable;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
+
 public class Util {
 
+	private static final Pattern SINGLE_QUOTE = Pattern.compile("'");
+
+	@SuppressWarnings("unused")
 	public static void assertEqualsIgnoringExtraWhitespaces(CharSequence expected, CharSequence actual) {
 		String expected2 = SQLUtil.removeExtraWhitespaces(expected.toString());
 		String actual2 = SQLUtil.removeExtraWhitespaces(actual.toString());
@@ -34,12 +37,12 @@ public class Util {
 		for (int i = 0; i < t.height(); i++) {
 			List<String> value = new ArrayList<>();
 			for (Cell cell : t.row(i)) {
-				if (cell.type == Type.Str) {
-					value.add(String.format("'%s'", cell.value.replaceAll("'", "''")));
-				} else if (cell.type == Type.Date) {
-					value.add(Utils.dateToLiteral(DateValue.parse(cell.value).date));
+				if (cell.type() == Type.Str) {
+					value.add(String.format("'%s'", SINGLE_QUOTE.matcher(cell.value()).replaceAll("''")));
+				} else if (cell.type() == Type.Date) {
+					value.add(Utils.dateToLiteral(DateValue.parse(cell.value()).date));
 				} else {
-					value.add(cell.value);
+					value.add(cell.value());
 				}
 			}
 			values.add(String.join(", ", value));
@@ -65,29 +68,19 @@ public class Util {
 			Column col = t.columns[i];
 			String colName;
 			if (colNumbering) {
+				//noinspection StringConcatenationMissingWhitespace
 				colName = "col" + colNum++;
 			} else {
 				colName = col.schema.name;
 			}
-			String colType;
+			String colType = switch (col.schema.type) {
+				case Dbl -> "double precision";
+				case Int -> "int";
+				case Date -> "date";
+				case Str -> "text";
+				default -> throw new RuntimeException();
+			};
 
-			switch (col.schema.type) {
-			case Dbl:
-				colType = "double precision";
-				break;
-			case Int:
-				colType = "int";
-				break;
-			case Date:
-				colType = "date";
-				break;
-			case Str:
-				colType = "text";
-				break;
-			case Null: // fall through
-			default:
-				throw new RuntimeException();
-			}
 			typeLines.add("\t" + colName + " " + colType);
 		}
 		sb.append(String.join(",\n", typeLines));
@@ -111,6 +104,8 @@ public class Util {
 	/**
 	 * @throws RuntimeException when check failed
 	 */
+	@SuppressWarnings({"CallToDriverManagerGetConnection", "JDBCExecuteWithNonConstantString", "EmptyTryBlock",
+			"JDBCPrepareStatementWithNonConstantString"})
 	public static void checkSQLSyntax(String generatedStm, NamedTable... ins) {
 		try (Connection conn = DriverManager.getConnection("jdbc:h2:mem:")) {
 			conn.setAutoCommit(false);
@@ -121,7 +116,7 @@ public class Util {
 				}
 			}
 
-			try (PreparedStatement ps = conn.prepareStatement(generatedStm); ResultSet rs = ps.executeQuery()) {
+			try (PreparedStatement ps = conn.prepareStatement(generatedStm); ResultSet ignored = ps.executeQuery()) {
 			}
 			conn.commit();
 		} catch (SQLException e) {
@@ -139,6 +134,7 @@ public class Util {
 	/**
 	 * @throws RuntimeException when check failed
 	 */
+	@SuppressWarnings({"JDBCExecuteWithNonConstantString", "CallToDriverManagerGetConnection", "JDBCPrepareStatementWithNonConstantString"})
 	public static void checkSQL(String generatedStm, Table outTbl, NamedTable... ins) {
 		try (Connection conn = DriverManager.getConnection("jdbc:h2:mem:")) {
 			conn.setAutoCommit(false);
@@ -237,7 +233,7 @@ public class Util {
 				String ddl = toDDL(nt);
 				System.err.println(ddl);
 				String values = toSQLExpression(nt.table);
-				System.err.println(String.format("INSERT INTO %s %s", nt.name, values));
+				System.err.printf("INSERT INTO %s %s%n", nt.name, values);
 			}
 			throw new RuntimeException(e);
 		}

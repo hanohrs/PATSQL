@@ -1,12 +1,5 @@
 package patsql.ra.util;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.stream.Collectors;
-
 import patsql.entity.synth.Example;
 import patsql.entity.synth.NamedTable;
 import patsql.entity.synth.SynthOption;
@@ -14,6 +7,14 @@ import patsql.entity.table.Cell;
 import patsql.entity.table.ColSchema;
 import patsql.entity.table.Table;
 import patsql.entity.table.Type;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class EvaluationUtil {
 
@@ -25,128 +26,143 @@ public class EvaluationUtil {
 		if (sql == null)
 			name = name + "X";
 
+		StringBuilder sb = new StringBuilder();
+
 		String description = "(nothing)";
-		try {
-			description = Files.lines(file.toPath(), StandardCharsets.UTF_8) //
-					.map(line -> line.replaceAll(" ", ""))//
-					.filter(line -> line.startsWith("//http"))//
-					.map(line -> line.replaceFirst("//", ""))//
-					.map(line -> "<a href=\"" + line + "\" target=\"blank\"> URL </a>")//
-					.collect(Collectors.joining("<br>"))//
-					+ "<br>" + //
-					Files.lines(file.toPath(), StandardCharsets.UTF_8) //
-							.filter(line -> line.startsWith("//"))//
-							.filter(line -> !line.replaceAll(" ", "").startsWith("//http"))
-							.map(line -> line.replaceFirst("//", ""))//
-							.map(line -> "<span>" + line + "</span>")//
-							.collect(Collectors.joining("<br>"));
+		try (Stream<String> lines1 = Files.lines(file.toPath(), StandardCharsets.UTF_8);
+			 Stream<String> lines2 = Files.lines(file.toPath(), StandardCharsets.UTF_8)) {
+			//noinspection DynamicRegexReplaceableByCompiledPattern
+			description = lines1
+					.map(line -> line.replaceAll(" ", ""))
+					.filter(line -> line.startsWith("//http"))
+					.map(line -> line.replaceFirst("//", ""))
+					.map(line -> "<a href=\"" + line + "\" target=\"blank\"> URL </a>")
+					.collect(Collectors.joining("<br>"))
+					+ "<br>"
+					+ lines2
+					.filter(line -> line.startsWith("//"))
+					.filter(line -> !line.replaceAll(" ", "").startsWith("//http"))
+					.map(line -> line.replaceFirst("//", ""))
+					.map(line -> "<span>" + line + "</span>")
+					.collect(Collectors.joining("<br>"));
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
-
-		StringBuilder sb = new StringBuilder();
-
-		// DESCRIPTION
-		sb.append("<h2>Description</h2>");
+		sb.append("<h2>Description</h2>").append('\n');
 		sb.append(description);
 
-		// header
-		sb.append("<!DOCTYPE html>" + "<html lang=\"en\">" + "" + "<head>" + "<meta charset=\"UTF-8\">"
-				+ "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" + "<title>");
-		sb.append(name);
-		sb.append("</title>" + "<link rel=\"stylesheet\" href=\"../css/result.css\">"
-				+ "<link rel=\"stylesheet\" href=\"../css/idea.css\">"
-				+ "<script type=\"text/javascript\" src=\"../js/lib/highlight.pack.js\"></script>"
-				+ "<script>hljs.initHighlightingOnLoad();</script>" + "</head>" + "" + "<body>"
-				+ "<h2>I/O Example</h2>");
+		String header = """
+				<!DOCTYPE html>
+				<html lang="en">
+				    
+				<head>
+				    <meta charset="utf-8" />
+				    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+				    <title>%s</title>
+				    <link rel="stylesheet" href="../css/result.css"/>
+				    <link rel="stylesheet" href="../css/idea.css"/>
+				    <script type="text/javascript" src="../js/lib/highlight.pack.js"></script>
+				    <script>hljs.initHighlightingOnLoad();</script>
+				</head>
+				""".formatted(name);
+		sb.append(header);
 
-		// INPUTS
+		String ioExampleHeading = """
+				<body>
+				<h2>I/O Example</h2>
+				""";
+		sb.append(ioExampleHeading);
+
 		for (NamedTable inTbl : ex.inputs) {
-			sb.append("<h3>INPUT: ");
-			sb.append(inTbl.name);
-			sb.append("</h3>");
-
-			sb.append("<table class=\"in_table mono\">");
+			String inputHeader = """
+					<h3>INPUT: %s</h3>
+										
+					<table class="in_table mono">
+					""".formatted(inTbl.name);
+			sb.append(inputHeader);
 			loadTable(sb, inTbl.table);
-			sb.append("</table>");
+			sb.append("</table>").append('\n');
 		}
 
-		// OUTPUT
-		sb.append("<h3>OUTPUT</h3>");
-		sb.append("<table class=\"out_table mono\">");
+		String outputHeader = """
+				<h3>OUTPUT</h3>
+				<table class="out_table mono">
+				""";
+		sb.append(outputHeader);
 		loadTable(sb, ex.output);
-		sb.append("</table>");
+		sb.append("</table>").append('\n');
 
-		// HINTS
-		sb.append("  <h3>Hints</h3>" + "<div>" + "<ul class=\"mono\">");
+		String hintsHeader = """
+				<h3>Hints</h3>
+				<div>
+				    <ul class"mono">
+				""";
+		sb.append(hintsHeader);
 		if (opt.extCells.length == 0) {
 			sb.append("<li>(empty)</li>");
+		} else {
+			for (Cell ext : opt.extCells) {
+				String hint = """
+						        <li>%s<span class="type">:%s</span></li>
+						""".formatted(ext.value(), ext.type());
+				sb.append(hint);
+			}
 		}
-		for (Cell ext : opt.extCells) {
-			sb.append("<li>");
-			sb.append(ext.value);
-			sb.append("<span class=\"type\">:" + ext.type + "</span>");
-			sb.append("</li>");
-		}
-		sb.append("</ul>" + "</div>");
+		String hintsFooter = """
+				    </ul>
+				</div>
+				""";
+		sb.append(hintsFooter);
 
-		// SOLUTION
-		sb.append("<h2>Our Solution</h2>");
+		String solutionHeader = "<h2>Our Solution</h2>";
+		sb.append(solutionHeader).append('\n');
 		if (sql != null) {
-			sb.append("<pre>" + "<code class=\"sql\">");
-			sb.append(sql);
-			sb.append("</code>" + "</pre>");
+			String solution = """
+					<pre><code class="sql">
+					%s
+					</code></pre>
+					""".formatted(sql);
+			sb.append(solution);
 		} else {
-			sb.append("(fail)");
+			sb.append("(fail)").append('\n');
 		}
 
-		// TIME
-		sb.append("  <h2>Synthesis Time</h2>" + "<div>");
-		if (sql == null) {
-			sb.append("(timeout)&nbsp;");
-			sb.append("&nbsp;milliseconds " + "</div>");
-		} else {
-			sb.append(synthesisTime);
-			sb.append("&nbsp;milliseconds" + "</div>");
-		}
+		String ms = sql == null ? "(timeout)" : Long.toString(synthesisTime);
+		String time = """
+				<h2>Synthesis Time</h2>
+				<div>%s milliseconds</div>
+				""".formatted(ms);
+		sb.append(time);
 
-		// trailer
-		sb.append("</body>" + "" + "</html>");
+		String outputFooter = """
+				</body>
+				</html>
+				""";
+		sb.append(outputFooter);
 
 		try {
-			File outf = new File("html/results/" + name + ".html");
-			outf.createNewFile();
-
-			try (FileWriter writer = new FileWriter(outf)) {
-				writer.write(sb.toString());
-			}
+			Files.writeString(Path.of("html", "results", name + ".html"), sb, StandardCharsets.UTF_8);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
 	}
 
 	private static void loadTable(StringBuilder sb, Table table) {
-		sb.append("<tr>");
-		for (ColSchema sc : table.schema()) {
-			sb.append("<th>");
-			sb.append(sc.name);
-			sb.append("<span class=\"type\">:" + sc.type + "</span>");
-			sb.append("</th>");
-		}
-		sb.append("</tr>");
+		String indent = " ".repeat(4);
 
-		// rows
+		sb.append(indent).append("<tr>");
+		for (ColSchema sc : table.schema())
+			sb.append(String.format("<th>%s<span class=\"type\">:%s</span></th>", sc.name, sc.type));
+		sb.append("</tr>").append('\n');
+
 		for (int i = 0; i < table.height(); i++) {
-			sb.append("<tr>");
+			sb.append(indent).append("<tr>");
 			for (Cell c : table.row(i)) {
-				if (c.type == Type.Null) {
-					sb.append("<td><span class= \"null\">" + c.value + "</span></td>");
-				} else {
-					sb.append("<td>" + c.value.trim() + "</td>");
-				}
+				String value = c.type() != Type.Null ?
+						c.value().trim() : String.format("<span class= \"null\">%s</span>", c.value());
+				sb.append("<td>").append(value).append("</td>");
 			}
-			sb.append("</tr>");
+			sb.append("</tr>").append('\n');
 		}
 	}
 }

@@ -1,9 +1,5 @@
 package patsql.ra.operator;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import patsql.entity.table.Cell;
 import patsql.entity.table.ColSchema;
 import patsql.entity.table.Column;
@@ -13,9 +9,14 @@ import patsql.entity.table.DateValue;
 import patsql.entity.table.Table;
 import patsql.entity.table.Type;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 public class BaseTable extends RAOperator {
+	private static final ColSchema[] EMPTY_COL_SCHEMAS = {};
 	public String tableId;
-	public ColSchema[] renamedCols = new ColSchema[] {};
+	public ColSchema[] renamedCols = EMPTY_COL_SCHEMAS;
 
 	public BaseTable(String tableId) {
 		super();
@@ -41,12 +42,12 @@ public class BaseTable extends RAOperator {
 			Column colD = new Column(new DateFuncColSchema(DateFunc.DAY, col.schema));
 
 			for (Cell cell : col.cells()) {
-				if (cell.type == Type.Null) {
+				if (cell.type() == Type.Null) {
 					colY.addCell(new Cell("", Type.Null));
 					colM.addCell(new Cell("", Type.Null));
 					colD.addCell(new Cell("", Type.Null));
 				} else {
-					DateValue date = DateValue.parse(cell.value);
+					DateValue date = DateValue.parse(cell.value());
 					colY.addCell(new Cell(date.year(), Type.Int));
 					colM.addCell(new Cell(date.month(), Type.Int));
 					colD.addCell(new Cell(date.day(), Type.Int));
@@ -57,7 +58,7 @@ public class BaseTable extends RAOperator {
 			colsAdded.add(colM);
 			colsAdded.add(colD);
 		}
-		table = table.addColumns(colsAdded.toArray(new Column[0]));
+		table = table.addColumns(colsAdded.toArray(Column[]::new));
 
 		if (renamedCols.length > 0) {
 			if (renamedCols.length != table.width()) {
@@ -71,11 +72,10 @@ public class BaseTable extends RAOperator {
 	}
 
 	@Override
-	public BaseTable clone() {
+	public final BaseTable clone() {
 		BaseTable copy = new BaseTable(tableId);
 		copy.id = this.id;
 		copy.renamedCols = this.renamedCols;
 		return copy;
 	}
-
 }

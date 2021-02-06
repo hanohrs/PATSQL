@@ -1,9 +1,6 @@
 package patsql.ra.operator;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.Test;
-
 import patsql.entity.table.Cell;
 import patsql.entity.table.ColSchema;
 import patsql.entity.table.Table;
@@ -13,6 +10,11 @@ import patsql.entity.table.agg.GroupKeys;
 import patsql.entity.table.sort.Order;
 import patsql.entity.table.sort.SortKey;
 import patsql.entity.table.window.WinFunc;
+
+import java.util.Optional;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class WindowTest {
 
@@ -27,11 +29,12 @@ class WindowTest {
 		table.addRow(new Cell("3", Type.Str), new Cell("X", Type.Str), new Cell("3", Type.Int));
 		table.addRow(new Cell("4", Type.Str), new Cell("Y", Type.Str), new Cell("1", Type.Int));
 
-		RAOperator program = new Window(//
-				new BaseTable("table1") //
-				, new WinColSchema(WinFunc.RANK, null, new GroupKeys(c2), new SortKey(c3, Order.Asc))//
-				, new WinColSchema(WinFunc.SUM, c3, GroupKeys.nil(), new SortKey(c1, Order.Asc))//
-		);
+		WinColSchema[] wcss = Stream.of(
+				WinColSchema.newInstance(WinFunc.RANK, null, new GroupKeys(c2), new SortKey(c3, Order.Asc)),
+				WinColSchema.newInstance(WinFunc.SUM, c3, GroupKeys.nil(), new SortKey(c1, Order.Asc))
+		).flatMap(Optional::stream).toArray(WinColSchema[]::new);
+
+		RAOperator program = new Window(new BaseTable("table1"), wcss);
 
 		TableEnv env = new TableEnv();
 		env.put("table1", table);

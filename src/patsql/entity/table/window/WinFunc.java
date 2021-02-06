@@ -1,11 +1,11 @@
 package patsql.entity.table.window;
 
-import java.util.Arrays;
-
 import patsql.entity.table.Cell;
 import patsql.entity.table.ColSchema;
 import patsql.entity.table.Type;
 import patsql.entity.table.agg.Agg;
+
+import java.util.Arrays;
 
 public enum WinFunc {
 	ROWNUM, //
@@ -17,61 +17,32 @@ public enum WinFunc {
 	COUNT, //
 	;
 
+	private static boolean uniqueCells(Cell[] orderCells) {
+		for (int i = 1; i < orderCells.length; i++)
+			if (orderCells[i].equals(orderCells[i - 1]))
+				return false;
+		return true;
+	}
+
 	public boolean hasColParam() {
-		switch (this) {
-		case RANK:
-		case ROWNUM:
-			return false;
-		default:
-			return true;
-		}
+		return switch (this) {
+			case RANK, ROWNUM -> false;
+			default -> true;
+		};
 	}
 
 	public boolean isAgg() {
-		switch (this) {
-		case MAX:
-		case MIN:
-		case SUM:
-		case COUNT:
-			return true;
-		default:
-			return false;
-		}
-	}
-
-	public boolean isComputable(Type operand) {
-		switch (this) {
-		case MAX:
-		case MIN:
-		case COUNT:
-			return true;
-		case SUM:
-			switch (operand) {
-			case Int:
-			case Dbl:
-				return true;
-			default:
-				return false;
-			}
-		case ROWNUM:
-		case RANK:
-			// error
-		}
-		throw new IllegalStateException("Do not use this method for the type :" + this);
+		return switch (this) {
+			case MAX, MIN, SUM, COUNT -> true;
+			case ROWNUM, RANK -> false;
+		};
 	}
 
 	public Type returnType(ColSchema src) {
-		switch (this) {
-		case MAX:
-		case MIN:
-		case SUM:
-			return (src != null) ? src.type : Type.Null;
-		case COUNT:
-		case RANK:
-		case ROWNUM:
-			return Type.Int;
-		}
-		throw new IllegalStateException("Unknown type : " + this);
+		return switch (this) {
+			case MAX, MIN, SUM -> src == null ? Type.Null : src.type;
+			case COUNT, RANK, ROWNUM -> Type.Int;
+		};
 	}
 
 	public Cell eval(int index, Cell[] targetCells, Cell[] orderCells) {
@@ -86,46 +57,31 @@ public enum WinFunc {
 			}
 			Cell[] tcells = Arrays.copyOfRange(targetCells, 0, end + 1);
 
-			switch (this) {
-			case MAX:
-				return Agg.Max.eval(tcells);
-			case MIN:
-				return Agg.Min.eval(tcells);
-			case SUM:
-				return Agg.Sum.eval(tcells);
-			case COUNT:
-				return Agg.Count.eval(tcells);
-			default:
-				throw new IllegalStateException("unreachable");
-			}
+			return switch (this) {
+				case MAX -> Agg.Max.eval(tcells);
+				case MIN -> Agg.Min.eval(tcells);
+				case SUM -> Agg.Sum.eval(tcells);
+				case COUNT -> Agg.Count.eval(tcells);
+				case ROWNUM, RANK -> throw new IllegalStateException("unreachable");
+			};
 		} else {
 			switch (this) {
-			case RANK: {
+			case RANK -> {
 				int i = index;
 				while (i > 0 && orderCells[i].equals(orderCells[i - 1])) {
 					i--;
 				}
 				return new Cell(Integer.toString(i + 1), returnType(null));
 			}
-			case ROWNUM: {
+			case ROWNUM -> {
 				if (!uniqueCells(orderCells))
 					return new Cell("null", Type.Null);
 				else
 					return new Cell(Integer.toString(index + 1), returnType(null));
 			}
-			default:
-				throw new IllegalStateException("unreachable");
+			default -> throw new IllegalStateException("unreachable");
 			}
 		}
-	}
-
-	private boolean uniqueCells(Cell[] orderCells) {
-		for (int i = 1; i < orderCells.length; i++) {
-			if (orderCells[i].equals(orderCells[i - 1])) {
-				return false;
-			}
-		}
-		return true;
 	}
 
 }

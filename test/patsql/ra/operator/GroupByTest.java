@@ -1,9 +1,6 @@
 package patsql.ra.operator;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.Test;
-
 import patsql.entity.table.AggColSchema;
 import patsql.entity.table.Cell;
 import patsql.entity.table.ColSchema;
@@ -12,6 +9,9 @@ import patsql.entity.table.Type;
 import patsql.entity.table.agg.Agg;
 import patsql.entity.table.agg.Aggregators;
 import patsql.entity.table.agg.GroupKeys;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GroupByTest {
 
@@ -139,10 +139,11 @@ class GroupByTest {
 		TableEnv env = new TableEnv();
 		env.put("table1", table);
 
-		Table result = program.eval(env);
-
-		assertEquals(4, result.width());
-		assertEquals(3, result.height());
+		assertThrows(
+				IllegalStateException.class,
+				() -> program.eval(env),
+				"IllegalStateException not thrown"
+		);
 	}
 
 }

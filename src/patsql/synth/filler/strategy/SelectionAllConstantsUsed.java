@@ -1,10 +1,5 @@
 package patsql.synth.filler.strategy;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-
 import patsql.entity.synth.Example;
 import patsql.entity.synth.SynthOption;
 import patsql.entity.table.AggColSchema;
@@ -12,7 +7,7 @@ import patsql.entity.table.BitTable;
 import patsql.entity.table.Cell;
 import patsql.entity.table.ColSchema;
 import patsql.entity.table.Table;
-import patsql.entity.table.agg.Agg;
+import patsql.entity.table.Type;
 import patsql.ra.operator.RA;
 import patsql.ra.operator.RAOperator;
 import patsql.ra.operator.Selection;
@@ -28,6 +23,13 @@ import patsql.synth.filler.ColRelation;
 import patsql.synth.filler.FillingConstraint;
 import patsql.synth.filler.RowSearchConsumingAllConstants;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 public class SelectionAllConstantsUsed implements FillingStrategy {
 
 	final FillingConstraint constraint;
@@ -42,14 +44,38 @@ public class SelectionAllConstantsUsed implements FillingStrategy {
 		this.constraint = constraint;
 
 		ColRelation colRel = constraint.col.relation.update(RA.SELECTION);
-		this.preConstraint = new FillingConstraint(//
-				new ColConstraint(constraint.col.matching, colRel)//
+		this.preConstraint = new FillingConstraint(
+				new ColConstraint(constraint.col.matching, colRel)
 		);
 	}
 
 	@Override
 	public RA targetKind() {
 		return RA.SELECTION;
+	}
+
+	/**
+	 * Order comparisons between String types are excluded.
+	 */
+	private static boolean isTried(ColSchema left, BinaryOp binop, Cell right) {
+		if (left.type != right.type())
+			return false;
+
+		// skip 'x' = ConcatConmma(...)
+		if (left instanceof AggColSchema ag) {
+			switch (ag.agg) {
+			case ConcatComma, ConcatSlash, ConcatSpace:
+				return false;
+			}
+		}
+
+		if (left.type == Type.Str) {
+			return switch (binop) {
+				case Eq, NotEq -> true;
+				case Gt, Geq, Lt, Leq -> false;
+			};
+		}
+		return true;
 	}
 
 	@Override
@@ -68,16 +94,13 @@ public class SelectionAllConstantsUsed implements FillingStrategy {
 		}
 
 		Set<Cell> alreadyUsed = RAUtils.usedConstants(target.child);
-		List<Cell> mustBeUsed = new ArrayList<Cell>();
-		for (Cell c : option.extCells) {
-			if (!alreadyUsed.contains(c)) {
-				mustBeUsed.add(c);
-			}
-		}
+		List<Cell> mustBeUsed = Arrays.stream(option.extCells)
+				.filter(c -> !alreadyUsed.contains(c))
+				.collect(Collectors.toCollection(ArrayList::new));
 
-		RowSearchConsumingAllConstants search = new RowSearchConsumingAllConstants(//
-				tmpTable.height(), //
-				mustBeUsed.toArray(new Cell[0])//
+		RowSearchConsumingAllConstants search = new RowSearchConsumingAllConstants(
+				tmpTable.height(),
+				mustBeUsed.toArray(Cell[]::new)
 		);
 
 		for (ColSchema col : tmpTable.schema()) {
@@ -117,34 +140,6 @@ public class SelectionAllConstantsUsed implements FillingStrategy {
 		}
 
 		return ret;
-	}
-
-	/**
-	 * Order comparisons between String types are excluded.
-	 */
-	private boolean isTried(ColSchema left, BinaryOp binop, Cell right) {
-		if (left.type != right.type)
-			return false;
-
-		// skip 'x' = ConcatConmma(...)
-		if (left instanceof AggColSchema) {
-			AggColSchema ag = (AggColSchema) left;
-			if (ag.agg == Agg.ConcatComma || ag.agg == Agg.ConcatSlash || ag.agg == Agg.ConcatSpace)
-				return false;
-		}
-
-		switch (left.type) {
-		case Str:
-			switch (binop) {
-			case Eq:
-			case NotEq:
-				return true;
-			default:
-				return false;
-			}
-		default:
-			return true;
-		}
 	}
 
 }

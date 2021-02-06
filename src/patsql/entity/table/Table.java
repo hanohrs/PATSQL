@@ -387,10 +387,6 @@ public class Table {
 		if (cols.length == 0) {
 			return this;
 		}
-		for (WinColSchema c : cols) {
-			if (!c.isValid())
-				throw new IllegalStateException("the windows schema is invalid :" + c);
-		}
 
 		// create new columns
 		Map<Long, List<Cell>> rid2cells = new HashMap<>();
@@ -435,7 +431,7 @@ public class Table {
 		Table ret = new Table(concat(schema(), cols));
 		for (int i = 0; i < height(); i++) {
 			Cell[] org = row(i);
-			Cell[] results = rid2cells.get(id(org)).toArray(new Cell[0]);
+			Cell[] results = rid2cells.get(id(org)).toArray(Cell[]::new);
 			ret.addRow(concat(org, results));
 		}
 		return ret;

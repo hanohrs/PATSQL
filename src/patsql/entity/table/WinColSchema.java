@@ -22,12 +22,19 @@ public class WinColSchema extends ColSchema {
 	 *             Specify {@link GroupKeys#nil()} if PARTITION BY not required.
 	 * @param oKey The column used in ORDER BY. Only one column can be specified for now.
 	 */
-	public WinColSchema(WinFunc func, @Nullable ColSchema src, @NotNull GroupKeys pKey, @Nullable SortKey oKey) {
+	private WinColSchema(WinFunc func, @Nullable ColSchema src, @NotNull GroupKeys pKey, @Nullable SortKey oKey) {
 		super(str(func, src, pKey, oKey), func.returnType(src));
 		this.func = func;
 		this.src = src;
 		this.partKey = pKey;
 		this.orderKey = (oKey == null) ? SortKeys.nil() : new SortKeys(oKey);
+	}
+
+	public static Optional<WinColSchema> newInstance(WinFunc func, @Nullable ColSchema src, @NotNull GroupKeys pKey, @Nullable SortKey oKey) {
+		if (isValid(func, src, pKey, oKey))
+			return Optional.of(new WinColSchema(func, src, pKey, oKey));
+		else
+			return Optional.empty();
 	}
 
 	public Optional<ColSchema> getSrc() {
@@ -46,32 +53,19 @@ public class WinColSchema extends ColSchema {
 		return orderKey.count() != 0;
 	}
 
-	public boolean isValid() {
-		switch (func) {
-		case COUNT:
-		case SUM:
-		case MAX:
-		case MIN:
-			if (src == null)
-				return false;
-			if (!hasOrderKey()) // excluded because it is the same as GroupBy+Join
-				return false;
-			break;
-		case RANK:
-			if (!hasOrderKey())
-				return false;
-			break;
-		case ROWNUM:
+	private static boolean isValid(WinFunc func, @Nullable ColSchema src, @NotNull GroupKeys pKey, @Nullable SortKey oKey) {
+		return switch (func) {
+			// oKey == null is excluded because it is the same as GroupBy+Join
+			case COUNT, MAX, MIN -> src != null && oKey != null;
+			case SUM -> src != null && oKey != null && switch (src.type) {
+				case Int, Dbl -> true;
+				case Null, Str, Date -> false;
+			};
+			case RANK -> oKey != null;
 			// TODO: the order key must assure the uniqueness, but current implementation
 			//       does not when the key has duplicated values.
-			if (!hasOrderKey())
-				return false;
-			//noinspection VariableNotUsedInsideIf
-			if (src != null)
-				return false;
-			break;
-		}
-		return true;
+			case ROWNUM -> oKey != null && src == null;
+		};
 	}
 
 }

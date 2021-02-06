@@ -14,12 +14,10 @@ public class SynthOption {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("CONSTANTS\n");
-		if (extCells.length == 0) {
+		if (extCells.length == 0)
 			sb.append("    (empty)\n");
-		}
-		for (Cell c : extCells) {
-			sb.append("  * " + c.value + ":" + c.type + "\n");
-		}
+		for (Cell c : extCells)
+			sb.append("  * ").append(c.value()).append(":").append(c.type()).append("\n");
 		return sb.toString();
 	}
 }

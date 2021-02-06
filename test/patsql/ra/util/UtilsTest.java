@@ -1,15 +1,14 @@
 package patsql.ra.util;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import java.io.File;
-
 import org.junit.jupiter.api.Test;
-
 import patsql.entity.table.ColSchema;
 import patsql.entity.table.Column;
 import patsql.entity.table.Table;
 import patsql.entity.table.Type;
+
+import java.io.File;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class UtilsTest {
 
@@ -25,10 +24,10 @@ class UtilsTest {
 
 	@Test
 	void testGuessInt() {
-		Table table = Utils.parseTable( //
-				"c1:Number", //
-				"1", //
-				"2", //
+		Table table = Utils.parseTable(
+				"c1:Number",
+				"1",
+				"2",
 				"3");
 		ColSchema[] schema = table.schema();
 		assertEquals(Type.Int, schema[0].type);
@@ -36,10 +35,10 @@ class UtilsTest {
 
 	@Test
 	void testGuessDbl() {
-		Table table = Utils.parseTable( //
-				"c1:Number", //
-				"1", //
-				"2.0", //
+		Table table = Utils.parseTable(
+				"c1:Number",
+				"1",
+				"2.0",
 				"3");
 		ColSchema[] schema = table.schema();
 		assertEquals(Type.Dbl, schema[0].type);
@@ -47,13 +46,13 @@ class UtilsTest {
 
 	@Test
 	void testWhitespaceNull() {
-		Table table = Utils.parseTable( //
-				"c1:Str", //
-				"a", //
-				" ", //
+		Table table = Utils.parseTable(
+				"c1:Str",
+				"a",
+				" ",
 				"z");
 		Column column = table.columns[0];
-		assertEquals(Type.Null, column.cell(1).type);
+		assertEquals(Type.Null, column.cell(1).type());
 	}
 
 }

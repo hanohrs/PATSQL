@@ -1,9 +1,5 @@
 package patsql.synth.filler.strategy;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import patsql.entity.synth.Example;
 import patsql.entity.synth.SynthOption;
 import patsql.entity.table.AggColSchema;
@@ -19,6 +15,10 @@ import patsql.ra.operator.RA;
 import patsql.ra.operator.RAOperator;
 import patsql.ra.operator.Window;
 import patsql.synth.filler.FillingConstraint;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class WindowPrune implements FillingStrategy {
 
@@ -42,26 +42,20 @@ public class WindowPrune implements FillingStrategy {
 		Table outTable = example.output;
 		Table tmpTable = target.child.eval(example.tableEnv());
 
-		List<WinColSchema> winSchemas = new ArrayList<>();
-		for (WinFunc func : WinFunc.values()) {
-			for (ColSchema src : srcColumns(tmpTable)) {
-				for (GroupKeys pKey : partitionKey(tmpTable)) {
-					for (SortKey oKey : orderbyKey(tmpTable)) {
-						WinColSchema wsc = new WinColSchema(func, src, pKey, oKey);
-						if (wsc.isValid()) {
-							winSchemas.add(wsc);
-						}
-					}
-				}
-			}
-		}
-
-		WinColSchema[] wsc = winSchemas.toArray(new WinColSchema[0]);
+		WinColSchema[] wscs = Arrays.stream(WinFunc.values()).flatMap(func ->
+				Arrays.stream(srcColumns(tmpTable)).flatMap(src ->
+						Arrays.stream(partitionKey(tmpTable)).flatMap(pKey ->
+								Arrays.stream(orderbyKey(tmpTable)).flatMap(oKey ->
+										WinColSchema.newInstance(func, src, pKey, oKey).stream()
+								)
+						)
+				)
+		).toArray(WinColSchema[]::new);
 		List<RAOperator> ret = new ArrayList<>();
-		Table got = tmpTable.applyWindow(wsc);
+		Table got = tmpTable.applyWindow(wscs);
 		if (!constraint.isPruned(got, outTable)) {
 			Window clone = target.clone();
-			clone.cols = reduce(wsc, tmpTable);
+			clone.cols = reduce(wscs, tmpTable);
 			ret.add(clone);
 		}
 		return ret;

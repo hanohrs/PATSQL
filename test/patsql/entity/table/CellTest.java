@@ -1,14 +1,14 @@
 package patsql.entity.table;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CellTest {
 
@@ -28,10 +28,10 @@ class CellTest {
 
 		String[] actual = new String[5];
 		for (int i = 0; i < actual.length; i++) {
-			actual[i] = list.get(i).value;
+			actual[i] = list.get(i).value();
 		}
 
-		String[] expected = new String[] { "1", "2", "3", "4", "5" };
+		String[] expected = {"1", "2", "3", "4", "5"};
 		assertArrayEquals(expected, actual);
 	}
 
@@ -49,11 +49,10 @@ class CellTest {
 		Collections.sort(list);
 
 		Type[] actual = new Type[4];
-		for (int i = 0; i < actual.length; i++) {
-			actual[i] = list.get(i).type;
-		}
+		for (int i = 0; i < actual.length; i++)
+			actual[i] = list.get(i).type();
 
-		Type[] expected = new Type[] { Type.Null, Type.Null, Type.Int, Type.Int };
+		Type[] expected = {Type.Null, Type.Null, Type.Int, Type.Int};
 		assertArrayEquals(expected, actual);
 	}
 
@@ -70,10 +69,10 @@ class CellTest {
 
 		String[] actual = new String[2];
 		for (int i = 0; i < actual.length; i++) {
-			actual[i] = list.get(i).value;
+			actual[i] = list.get(i).value();
 		}
 
-		String[] expected = new String[] { "9.000", "10.000" };
+		String[] expected = {"9.000", "10.000"};
 		assertArrayEquals(expected, actual);
 	}
 
@@ -90,10 +89,10 @@ class CellTest {
 
 		String[] actual = new String[2];
 		for (int i = 0; i < actual.length; i++) {
-			actual[i] = list.get(i).value;
+			actual[i] = list.get(i).value();
 		}
 
-		String[] expected = new String[] { "10.000", "9.000" };
+		String[] expected = {"10.000", "9.000"};
 		assertArrayEquals(expected, actual);
 	}
 
