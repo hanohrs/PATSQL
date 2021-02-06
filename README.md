@@ -9,7 +9,7 @@ You can try PATSQL at https://naist-se.github.io/patsql/.
 The code is written in Java as an IntelliJ IDEA project. Maven is also required to manage dependencies and build the
 project.
 
-- Java 1.8 or later
+- JDK 15
 - Maven 3.6.3 or later
 
 ## Contents

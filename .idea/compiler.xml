@@ -10,7 +10,12 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="patsql-engine" target="1.8" />
+      <module name="patsql-engine" target="15" />
     </bytecodeTargetLevel>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="patsql-engine" options="--enable-preview" />
+    </option>
   </component>
 </project>
