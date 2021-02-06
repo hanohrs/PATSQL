@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@SuppressWarnings("unused")
 public class EvaluationUtil {
 
 	public static void writeResultToFile(File file, String sql, long synthesisTime, Example ex, SynthOption opt) {
