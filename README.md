@@ -138,3 +138,10 @@ Used to format SQL queries.
 License: LGPL 2.1  
 Version: 5.4.11.Final  
 https://mvnrepository.com/artifact/org.hibernate/hibernate-core/5.4.11.Final
+
+### Annotations for JVM-based languages
+
+Used to analyze nullness.  
+License: Apache License 2.0  
+Version: 20.1.0  
+https://mvnrepository.com/artifact/org.jetbrains/annotations/20.1.0

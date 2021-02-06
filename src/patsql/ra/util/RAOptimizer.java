@@ -1,13 +1,5 @@
 package patsql.ra.util;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import patsql.entity.table.AggColSchema;
 import patsql.entity.table.ColSchema;
 import patsql.entity.table.WinColSchema;
@@ -29,6 +21,13 @@ import patsql.ra.predicate.JoinKeyPair;
 import patsql.ra.predicate.Predicate;
 import patsql.ra.predicate.UnaryPred;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 public class RAOptimizer {
@@ -204,8 +203,8 @@ public class RAOptimizer {
 					Window p = (Window) op;
 					Set<Integer> ids = new HashSet<>();
 					for (WinColSchema c : p.cols) {
-						if (c.src.isPresent()) {
-							ids.addAll(usedIDs(c.src.get()));
+						if (c.getSrc().isPresent()) {
+							ids.addAll(usedIDs(c.getSrc().get()));
 						}
 						for (ColSchema sc : c.partKey.colSchemas) {
 							ids.addAll(usedIDs(sc));
@@ -260,8 +259,8 @@ public class RAOptimizer {
 			WinColSchema wc = (WinColSchema) sc;
 			List<ColSchema> ret = new ArrayList<>();
 			ret.add(sc);
-			if (wc.src.isPresent())
-				ret.add(wc.src.get());
+			if (wc.getSrc().isPresent())
+				ret.add(wc.getSrc().get());
 			ret.addAll(Arrays.asList(wc.partKey.colSchemas));
 			for (SortKey sk : wc.orderKey.keys)
 				ret.add(sk.col);

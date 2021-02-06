@@ -1,17 +1,6 @@
 package patsql.generator.sql;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import org.hibernate.engine.jdbc.internal.BasicFormatterImpl;
-
 import patsql.entity.table.AggColSchema;
 import patsql.entity.table.Cell;
 import patsql.entity.table.ColSchema;
@@ -28,17 +17,17 @@ import patsql.generator.sql.query.QCondition;
 import patsql.generator.sql.query.QConditionBinaryOperator;
 import patsql.generator.sql.query.QDateFuncColumn;
 import patsql.generator.sql.query.QJoinSpec;
+import patsql.generator.sql.query.QJoinSpec.JoinType;
 import patsql.generator.sql.query.QQuery;
 import patsql.generator.sql.query.QRelationBinaryOperator;
+import patsql.generator.sql.query.QRelationBinaryOperator.Operator;
 import patsql.generator.sql.query.QRelationUnaryOperator;
 import patsql.generator.sql.query.QSingleColumn;
 import patsql.generator.sql.query.QSingleColumnCondition;
 import patsql.generator.sql.query.QSingleRelation;
 import patsql.generator.sql.query.QSortSpec;
-import patsql.generator.sql.query.QWindowFuncColumn;
-import patsql.generator.sql.query.QJoinSpec.JoinType;
-import patsql.generator.sql.query.QRelationBinaryOperator.Operator;
 import patsql.generator.sql.query.QSortSpec.Ordering;
+import patsql.generator.sql.query.QWindowFuncColumn;
 import patsql.ra.operator.BaseTable;
 import patsql.ra.operator.Distinct;
 import patsql.ra.operator.GroupBy;
@@ -59,6 +48,16 @@ import patsql.ra.predicate.JoinKeyPair;
 import patsql.ra.predicate.Predicate;
 import patsql.ra.predicate.UnaryOp;
 import patsql.ra.predicate.UnaryPred;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SQLUtil {
 
@@ -196,8 +195,7 @@ public class SQLUtil {
 			SQLizeState ret = generateSQLizeState(child);
 
 			for (WinColSchema wcs : win.cols) {
-				Optional<QSingleColumn> srcCol = wcs.src.map(s -> (QSingleColumn) ret.idToQColumn.get(s.id));
-				assert !srcCol.isPresent() || srcCol.get() != null;
+				Optional<QSingleColumn> srcCol = wcs.getSrc().map(s -> (QSingleColumn) ret.idToQColumn.get(s.id));
 
 				List<QColumn> partCols = new ArrayList<>();
 				for (ColSchema colSchema : wcs.partKey.colSchemas) {
