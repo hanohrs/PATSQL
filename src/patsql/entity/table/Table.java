@@ -18,7 +18,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.stream.Collectors.collectingAndThen;
@@ -72,17 +74,10 @@ public class Table {
 		return columns[0].size();
 	}
 
-	public void addRow(Cell... row) {
-		if (row.length != width()) {
-			throw new IllegalStateException(
-					"Size of a row (" + row.length + ") is not " + width() + ". row data: {" + row + "}");
-		}
-
-		for (int i = 0; i < row.length; i++) {
-			Cell r = row[i];
-			Column col = columns[i];
-			col.addCell(r);
-		}
+	private static <T> T[] concat(T[] arr1, T[] arr2) {
+		T[] ret = Arrays.copyOf(arr1, arr1.length + arr2.length);
+		System.arraycopy(arr2, 0, ret, arr1.length, arr2.length);
+		return ret;
 	}
 
 	public Cell[] row(int r) {
@@ -294,12 +289,18 @@ public class Table {
 		return true;
 	}
 
-	private <T> T[] concat(T[] arr1, T[] arr2) {
-		T[] ret = Arrays.copyOf(arr1, arr1.length + arr2.length);
-		for (int i = 0; i < arr2.length; i++) {
-			ret[arr1.length + i] = arr2[i];
+	public void addRow(Cell... row) {
+		if (row.length != width()) {
+			String message = String.format("Size of a row (%s) is not %s. row data: {%s}",
+					row.length, width(), Arrays.toString(row));
+			throw new IllegalStateException(message);
 		}
-		return ret;
+
+		for (int i = 0; i < row.length; i++) {
+			Cell r = row[i];
+			Column col = columns[i];
+			col.addCell(r);
+		}
 	}
 
 	private Cell[] aggregate(Aggregators ags) {
@@ -384,45 +385,34 @@ public class Table {
 
 	public Table applyWindow(WinColSchema... cols) {
 		// validation
-		if (cols.length == 0) {
+		if (cols.length == 0)
 			return this;
-		}
 
+		// extract the row's ID which is represented as an integer list.
+		// please note that System::identityHashCode returns the same hash code for the given object as would be
+		// returned by the default method hashCode() [1] which returns distinct integers for distinct objects [2].
+		// [1] https://docs.oracle.com/en/java/javase/15/docs/api/java.base/java/lang/System.html#identityHashCode(java.lang.Object)
+		// [2] https://docs.oracle.com/en/java/javase/15/docs/api/java.base/java/lang/Object.html#hashCode()
+		Function<Cell[], List<Integer>> id = row -> Arrays.stream(row)
+				.map(System::identityHashCode)
+				.collect(Collectors.toUnmodifiableList());
+
+		Map<List<Integer>, List<Cell>> rid2cells = new HashMap<>();
 		// create new columns
-		Map<Long, List<Cell>> rid2cells = new HashMap<>();
 		for (WinColSchema wsc : cols) {
 			for (Table g : groups(wsc.partKey)) {
 				Table grp = g.sort(wsc.orderKey);
 
-				// set cells to calculate the value.
-				Cell[] targetCells = null;
-				if (wsc.getSrc().isPresent()) {
-					targetCells = grp.columnById(wsc.getSrc().get().id).cells();
-				}
-
-				// set cells to calculate the range.
-				Cell[] orderKeys = null;
-				if (wsc.hasOrderKey()) {
-					SortKey k = wsc.orderKey.get(0);
-					orderKeys = grp.columnById(k.col.id).cells();
-				}
+				Cell[] targetCells = wsc.getSrc().isPresent() ? grp.columnById(wsc.getSrc().get().id).cells() : null;
+				Cell[] orderKeys = wsc.hasOrderKey() ? grp.columnById(wsc.orderKey.get(0).col.id).cells() : null;
 
 				for (int i = 0; i < grp.height(); i++) {
 					// if the function is aggregation, it applied on all rows.
-					int lim = -1;
-					if (wsc.func.isAgg())
-						lim = (wsc.orderKey.count() > 0) ? i : grp.height() - 1;
-					else
-						lim = i;
+					int lim = wsc.func.isAgg() && wsc.orderKey.count() == 0 ? grp.height() - 1 : i;
 					Cell result = wsc.func.eval(lim, targetCells, orderKeys);
-
 					// register the result in the map.
-					long rowID = id(grp.row(i));
-					List<Cell> list = rid2cells.get(rowID);
-					if (list == null)
-						list = new ArrayList<>();
-					list.add(result);
-					rid2cells.put(rowID, list);
+					List<Integer> rowID = id.apply(grp.row(i));
+					rid2cells.computeIfAbsent(rowID, k -> new ArrayList<>()).add(result);
 				}
 			}
 		}
@@ -430,20 +420,9 @@ public class Table {
 		// append them to a table
 		Table ret = new Table(concat(schema(), cols));
 		for (int i = 0; i < height(); i++) {
-			Cell[] org = row(i);
-			Cell[] results = rid2cells.get(id(org)).toArray(Cell[]::new);
-			ret.addRow(concat(org, results));
-		}
-		return ret;
-	}
-
-	private long id(Cell[] row) {
-		if (row == null || row.length == 0) {
-			throw new IllegalStateException("The row is empty.");
-		}
-		int ret = 0;
-		for (int i = 0; i < row.length; i++) {
-			ret += (i + 1) * System.identityHashCode(row[i]); // weighted sum
+			List<Integer> rowID = id.apply(row(i));
+			Cell[] results = rid2cells.get(rowID).toArray(Cell[]::new);
+			ret.addRow(concat(row(i), results));
 		}
 		return ret;
 	}
